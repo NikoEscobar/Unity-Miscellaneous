@@ -6,17 +6,26 @@ using UnityEngine.UI;
 public class NotorietyBehaviourHud : MonoBehaviour
 {
     public Image notorietyBar;
-    [SerializeField]
+
     private EnemyBehaviour enemy_script;
     private GameObject enemy;
 
     [SerializeField]
-    private float notorietyLevel, maxNotorietyLevel, enemySightRange, distanceFromEnemy, alertInPercentage, counterBySeconds, speedRate, MaxAlertOffset;
+    private float maxNotorietyLevel, enemySightRange, MaxAlertOffset;
+
+    private float notorietyLevel;
+    private float distanceFromEnemy;
+    private float alertInPercentage;
+    private float counterBySeconds;
+    private float speedRate;
+
+    private bool isOscillating;
 
     [SerializeField]
-    private bool isOscillating;
-    //todo
-    private static int linear = 0, smooth = 1, chopped = 2;
+    private enum OscillationTypes {linear,smooth,chopped,heartBeat};
+
+    [SerializeField]
+    private OscillationTypes OscillationType;
 
     void Awake()
     {
@@ -28,6 +37,8 @@ public class NotorietyBehaviourHud : MonoBehaviour
     {
         notorietyBar.type = Image.Type.Filled;
         notorietyBar.fillMethod = Image.FillMethod.Horizontal;
+
+        OscillationType = OscillationTypes.smooth;
     }
 
     void Update()
@@ -37,6 +48,7 @@ public class NotorietyBehaviourHud : MonoBehaviour
         UpdatingNotorietyLevel();
         OscillationEnableControl();
         OscillateHudBarEffect(isOscillating);
+
         PrototypingWarnings();
     }
 
@@ -91,7 +103,7 @@ public class NotorietyBehaviourHud : MonoBehaviour
         return oscillationRange;
     }
 
-    private float GenerateOscillation(int typeOfOscillation)
+    private float GenerateOscillation(OscillationTypes typeOfOscillation)
     {   //sin of 1.571 rad = 1, so each 1.571 seconds, it does half turn
         float rangeOfOscillation = OscillationRange();
         float halfRange = rangeOfOscillation / 2f;
@@ -100,17 +112,17 @@ public class NotorietyBehaviourHud : MonoBehaviour
         float oscillation = 0;
         switch (typeOfOscillation)
         {
-            case 0:
-                float linearOscillation = Mathf.PingPong(LoopCounterBySeconds(secondsToloop), rangeOfOscillation);
-                oscillation = linearOscillation;
+            case OscillationTypes.linear:
+                oscillation = Mathf.PingPong(LoopCounterBySeconds(secondsToloop), rangeOfOscillation);
                 break;
-            case 1:
-                float smoothOscillation = Mathf.Sin(LoopCounterBySeconds(secondsToloop) * angle) * halfRange + halfRange;
-                oscillation = smoothOscillation;
+            case OscillationTypes.smooth:
+                oscillation = Mathf.Sin(LoopCounterBySeconds(secondsToloop) * angle) * halfRange + halfRange;
                 break;
-            case 2:
-                float choppedOscillation = Mathf.Abs(Mathf.Sin(LoopCounterBySeconds(secondsToloop) * angle));
-                oscillation = choppedOscillation;
+            case OscillationTypes.chopped:
+                oscillation = Mathf.Abs(Mathf.Sin(LoopCounterBySeconds(secondsToloop) * angle) * rangeOfOscillation);
+                break;
+            case OscillationTypes.heartBeat:
+                oscillation = Mathf.Abs(Mathf.Sin(LoopCounterBySeconds(secondsToloop) * angle) + halfRange);
                 break;
             default:
                 break;
@@ -123,7 +135,7 @@ public class NotorietyBehaviourHud : MonoBehaviour
     {
         if (isOscillating)
         {
-            float oscillatingValue = GenerateOscillation(smooth);
+            float oscillatingValue = GenerateOscillation(OscillationType);
             notorietyBar.fillAmount = oscillatingValue;
         }
     }
