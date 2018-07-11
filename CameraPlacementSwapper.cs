@@ -3,15 +3,13 @@ using System.Collections;
 
 public class CameraPlacementSwapper : MonoBehaviour
 {
-
-    public int cameraStyle;
-
     public ShipInsideCollider ShipInsideColliderScript;
-    public ShipCamFix ShipCamFixScript;
+    public ShipCameraCollider ShipCameraColliderScript;
 
-    private bool returnCameraTrigger = false;
+    private bool HoldCameraPreference = false;
 
-    private enum CameraPlacement
+    [HideInInspector]
+    public enum CameraPlacement
     {
         onPlayerDefault,
         onPlayerFocus,
@@ -19,45 +17,65 @@ public class CameraPlacementSwapper : MonoBehaviour
 
     ;
 
-    [SerializeField]
-    private CameraPlacement CameraPlace;
+    [HideInInspector]
+    public CameraPlacement CameraPlace;
 
     void Start()
     {
-        cameraStyle = 1;
-        CameraPlace = CameraPlacement.onPlayerDefault;
-
+        PutCameraOnDefault();
     }
 
     void Update()
     {
-        CameraPlacementSwap();
+        CameraPlacementSwapByCollision();
+        SwapCameraByButton();
     }
 
-    void CameraPlacementSwap()
+    void CameraPlacementSwapByCollision()
     {
-        if (ShipInsideColliderScript.insideShip == true || ShipCamFixScript.GoingToShip == true)
+        if (IsPlayerInsideShip())
         {
-            cameraStyle = 3;
-            CameraPlace = CameraPlacement.onShipPlongee;
-            returnCameraTrigger = true;
+            PutCameraOnShip();
         }
-        else if (ShipInsideColliderScript.insideShip == false && ShipCamFixScript.GoingToShip == false && returnCameraTrigger == true)
+        else if (!IsPlayerInsideShip() && HoldCameraPreference == true)
         {
-            cameraStyle = 1;
-            CameraPlace = CameraPlacement.onPlayerDefault;
-            returnCameraTrigger = false;
+            PutCameraOnDefault();
         }
+    }
 
-        if (Input.GetButtonUp("CameraSwap") && cameraStyle == 1)
+    void PutCameraOnShip()
+    {
+        CameraPlace = CameraPlacement.onShipPlongee;
+        HoldCameraPreference = true;
+    }
+
+    void PutCameraOnDefault()
+    {
+        CameraPlace = CameraPlacement.onPlayerDefault;
+        HoldCameraPreference = false;
+    }
+
+    void SwapCameraByButton()
+    {
+        if (Input.GetButtonUp("Focus Attention") && CameraPlace == CameraPlacement.onPlayerDefault)
         {
-            cameraStyle = 2;
             CameraPlace = CameraPlacement.onPlayerFocus;
         }
-        else if (Input.GetButtonUp("CameraSwap") && cameraStyle == 2)
+        else if (Input.GetButtonUp("Focus Attention") && CameraPlace == CameraPlacement.onPlayerFocus)
         {
-            cameraStyle = 1;
             CameraPlace = CameraPlacement.onPlayerDefault;
         }
+    }
+
+    private bool IsPlayerInsideShip()
+    {
+        bool playerOnShip;
+        if (ShipInsideColliderScript.insideShip == true || ShipCameraColliderScript.GoingToShip == true)
+        {
+            playerOnShip = true;
+        }
+        else
+            playerOnShip = false;
+        return playerOnShip;
     }
 }
