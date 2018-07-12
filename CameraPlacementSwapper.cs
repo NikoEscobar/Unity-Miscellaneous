@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using UnityEngine.Assertions;
 
 public class CameraPlacementSwapper : MonoBehaviour
 {
@@ -29,6 +30,9 @@ public class CameraPlacementSwapper : MonoBehaviour
     {
         CameraPlacementSwapByCollision();
         SwapCameraByButton();
+
+        Assert.IsNotNull(ShipInsideColliderScript);
+        Assert.IsNotNull(ShipCameraColliderScript);
     }
 
     void CameraPlacementSwapByCollision()
@@ -70,7 +74,7 @@ public class CameraPlacementSwapper : MonoBehaviour
     private bool IsPlayerInsideShip()
     {
         bool playerOnShip;
-        if (ShipInsideColliderScript.insideShip == true || ShipCameraColliderScript.GoingToShip == true)
+        if (ShipInsideColliderScript.playerIsInsideShip == true || ShipCameraColliderScript.CameraIsInsideShip == true)
         {
             playerOnShip = true;
         }

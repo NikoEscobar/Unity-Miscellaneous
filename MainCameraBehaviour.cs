@@ -3,15 +3,10 @@ using System.Collections;
 
 public class MainCameraBehaviour : MonoBehaviour
 {
-
-    public Transform cameraPosition;
-    public Transform Target;
-    public Transform cameraPosition2;
-    public Transform Target2;
-    public Transform cameraPosition3;
-    public Transform Target3;
-
-    public int CameraSpeed;
+    public Transform[] cameraSpots;
+    public Transform[] targets;
+   
+    public int cameraSpeed = 3;
 
     public CameraPlacementSwapper CameraPlacementSwapperScript;
 	
@@ -21,57 +16,41 @@ public class MainCameraBehaviour : MonoBehaviour
     Camera myCamera;
     Transform camTransform;
     Transform pivot;
-    public int CameraClipSpeed = 1;
+    public int cameraClipSpeed = 1;
 
     void OnEnable()
     {
-        pivot = Target.transform;
+        pivot = targets[0].transform;
         myCamera = Camera.main;
         camTransform = myCamera.transform;
-        
         camTransform.position = pivot.TransformPoint(Vector3.forward * offset);
 		
         mask = 1 << LayerMask.NameToLayer("Clippable") | 0 << LayerMask.NameToLayer("NotClippable");
     }
 
-    void Start()
+    void FixedUpdate()
     {
-
-    }
-
-    void FixedUpdate() 
-    {
-        FollowPlayer1();
-        FollowPlayer2();
-        FollowPlayer3();
+        CameraTrackByPlacement();
         CentralRay();
+
     }
 
-    void FollowPlayer1()
-    {   
-        if (Target != null && CameraPlacementSwapperScript.CameraPlace == CameraPlacementSwapper.CameraPlacement.onPlayerDefault)
-        {   
-            transform.position = Vector3.Slerp(transform.position, cameraPosition.position, Time.fixedDeltaTime * CameraSpeed);	
-            transform.LookAt(Target);
-        }
-    }
-
-    void FollowPlayer2()
+    void TrackingTarget(Transform target, Transform cameraSpot)
     {
-        if (Target != null && CameraPlacementSwapperScript.CameraPlace == CameraPlacementSwapper.CameraPlacement.onPlayerFocus)
-        {
-            transform.position = Vector3.Slerp(transform.position, cameraPosition2.position, Time.fixedDeltaTime * CameraSpeed);	
-            transform.LookAt(Target2);
-        }
+        transform.position = Vector3.Slerp(transform.position, cameraSpot.position, Time.fixedDeltaTime * cameraSpeed); 
+        transform.LookAt(target);
     }
 
-    void FollowPlayer3()
+    CameraPlacementSwapper.CameraPlacement GetCameraPlacement()
     {
-        if (Target != null && CameraPlacementSwapperScript.CameraPlace == CameraPlacementSwapper.CameraPlacement.onShipPlongee)
-        {
-            transform.position = Vector3.Slerp(transform.position, cameraPosition3.position, Time.fixedDeltaTime * CameraSpeed);	
-            transform.LookAt(Target3);
-        }
+        CameraPlacementSwapper.CameraPlacement cameraPlacement = CameraPlacementSwapperScript.CameraPlace;
+        return cameraPlacement;
+    }
+
+    void CameraTrackByPlacement()
+    {
+        int i = (int)GetCameraPlacement();
+        TrackingTarget(targets[i], cameraSpots[i]);
     }
 
     void CentralRay()
@@ -83,15 +62,13 @@ public class MainCameraBehaviour : MonoBehaviour
         RaycastHit hit;
         if (Physics.Linecast(pivot.position, idealPostion, out hit, mask.value))
         {
-            
             unobstructed = -hit.distance + 1f;
-            
+
 		
             Vector3 desiredPos = pivot.TransformPoint(Vector3.forward * unobstructed);
             Vector3 currentPos = camTransform.position;
 		
-            
-            Vector3 goToPos = Vector3.Slerp(camTransform.position, desiredPos, Time.fixedDeltaTime * CameraClipSpeed);
+            Vector3 goToPos = Vector3.Slerp(camTransform.position, desiredPos, Time.fixedDeltaTime * cameraClipSpeed);
  		
             camTransform.localPosition = goToPos;
         }      
