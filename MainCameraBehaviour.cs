@@ -1,22 +1,36 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using System.Collections;
+
 
 public class MainCameraBehaviour : MonoBehaviour
 {
-    public Transform[] cameraSpots;
-    public Transform[] targets;
-   
+    public Transform[] cameraSpots = new Transform[numberOfCameraHoldersInScene];
+    public Transform[] targets = new Transform[numberOfCameraHoldersInScene];
+
+    private const int numberOfCameraHoldersInScene = 3;
     public int cameraSpeed = 3;
 
     public CameraPlacementSwapper CameraPlacementSwapperScript;
 	
-    LayerMask mask;
+    private LayerMask mask;
+    private Camera myCamera;
+
     public float offset = 0;
     public float camFollow = 0.1f;
-    Camera myCamera;
-    Transform camTransform;
-    Transform pivot;
     public int cameraClipSpeed = 1;
+
+    private Transform camTransform;
+    private Transform pivot;
+
+    void OnValidate()
+    {
+        if (cameraSpots.Length != numberOfCameraHoldersInScene || targets.Length != numberOfCameraHoldersInScene)
+        {
+            Debug.LogWarning("Do not change the numberOfCameraHoldersInScene field's array size!");
+            Array.Resize(ref cameraSpots, numberOfCameraHoldersInScene);
+        }
+    }
 
     void OnEnable()
     {
@@ -31,7 +45,7 @@ public class MainCameraBehaviour : MonoBehaviour
     void FixedUpdate()
     {
         CameraTrackByPlacement();
-        CentralRay();
+        OverlapCameraColliders();
 
     }
 
@@ -53,24 +67,20 @@ public class MainCameraBehaviour : MonoBehaviour
         TrackingTarget(targets[i], cameraSpots[i]);
     }
 
-    void CentralRay()
+    void OverlapCameraColliders()
     {
 	
         float unobstructed = offset;
-        Vector3 idealPostion = pivot.TransformPoint(Vector3.forward * offset);
+        Vector3 idealPosition = pivot.TransformPoint(Vector3.forward * offset);
  
         RaycastHit hit;
-        if (Physics.Linecast(pivot.position, idealPostion, out hit, mask.value))
+        if (Physics.Linecast(pivot.position, idealPosition, out hit, mask.value))
         {
             unobstructed = -hit.distance + 1f;
-
-		
-            Vector3 desiredPos = pivot.TransformPoint(Vector3.forward * unobstructed);
-            Vector3 currentPos = camTransform.position;
-		
-            Vector3 goToPos = Vector3.Slerp(camTransform.position, desiredPos, Time.fixedDeltaTime * cameraClipSpeed);
- 		
-            camTransform.localPosition = goToPos;
+            Vector3 desiredPosition = pivot.TransformPoint(Vector3.forward * unobstructed);
+            Vector3 currentPosition = camTransform.position;
+            Vector3 goToPosition = Vector3.Slerp(camTransform.position, desiredPosition, Time.fixedDeltaTime * cameraClipSpeed);
+            camTransform.localPosition = goToPosition;
         }      
     }
 }
