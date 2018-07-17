@@ -3,41 +3,40 @@ using System.Collections;
 
 public class ShipBehaviour : MonoBehaviour
 {
-	
-    public bool shipIn;
-    public bool goToShip;
-    public bool goToGround;
-    public bool runOnce;
+    [HideInInspector]
+    public bool onShipEntrance;
+    [HideInInspector]
+    public bool applyRotationOnce;
+
+    private bool carryPlayerToShip;
+
     public Transform Player;
-    public Transform Ship;
+    public Transform VikingShip;
     public Transform groundSpot;
+
     public VikingControls VikingControlsScript;
     public ShipInsideCollider ShipInsideColliderScript;
+    public ShipLandingCollider ShipLandingColliderScript;
     public Viking_anim Viking_animScript;
-    public ShipOutLand ShipOutLandScript;
 
-    public float velocidade = 2;
-    public float velocidadeQueda = 10;
+    public float risingSpeed = 2;
+    public float fallingSpeed = 10;
 
-    public float range;
-
-    public float shipYRot;
+    private float vikingShipOrientation;
 
     void FixedUpdate()
     {
-        controleDaDistancia();
-        OnShip();
-        OutaShip();
-        VickLand();
+        CarryPlayerToShip(carryPlayerToShip);
+        LaunchPlayerToGroundSpot(Viking_animScript.launchPlayerFromShip);
+        LandingPlayer();
     }
 
     void OnTriggerEnter(Collider other)
     {
         if (other.gameObject.tag == "Player")
         {
-            shipIn = true;
-            goToShip = true;
-            ShipOutLandScript.vLand = false;
+            onShipEntrance = true;
+            carryPlayerToShip = true;
         } 
     }
 
@@ -45,94 +44,69 @@ public class ShipBehaviour : MonoBehaviour
     {
         if (other.gameObject.tag == "Player")
         {
-            VikingControlsScript.Frozen(true);
+            VikingControlsScript.FreezePlayerMovement(true);
         }
     }
 
-    void GoToShip(bool go)
+    void ApplyInertiaToPlayer()
     {
-        if (go)
+        VikingControlsScript.speed = 0f;
+        VikingControlsScript.gravity = 0f;
+    }
+
+    void CarryPlayerToShip(bool isCarrying)
+    {
+        if (isCarrying)
         {
-            if (velocidade <= 0f)
+            VikingControlsScript.FreezePlayerMovement(true);
+            ApplyInertiaToPlayer();
+            Vector3 directionToShip = (VikingShip.position - Player.position).normalized;
+            Player.transform.position += directionToShip * risingSpeed * Time.fixedDeltaTime;
+        }
+        if (ShipInsideColliderScript.PlayerIsInsideShip)
+        {
+            carryPlayerToShip = false;
+        }
+
+    }
+
+    void LaunchPlayerToGroundSpot(bool launch)
+    {
+        if (launch)
+        {
+            Vector3 directionToGround = (groundSpot.position - Player.position).normalized;
+            Player.transform.position += directionToGround * fallingSpeed * Time.fixedDeltaTime;
+            Quaternion inclineHeadForward = Quaternion.LookRotation(directionToGround);
+            Player.transform.rotation = inclineHeadForward;
+        }
+    }
+
+    void LandingPlayer()
+    {
+        if (ShipLandingColliderScript.PlayerHitExitCollider)
+        {
+            vikingShipOrientation = VikingShip.transform.localEulerAngles.y;
+            TurnOnGravity();
+
+            if (applyRotationOnce)
             {
-                velocidade = 2f;
-            }
-            VikingControlsScript.speed = 0f;
-            VikingControlsScript.gravity = 0f;
-            Vector3 direcao = (Ship.position - Player.position).normalized;
-            Player.transform.position += direcao * velocidade * Time.fixedDeltaTime;
-        }
-        else
-        {
-            VikingControlsScript.gravity = VikingControlsScript.Lastgravity;
-            return;
-        }
-    }
-
-    void GoToGround(bool go)
-    {
-        if (go)
-        {
-            VikingControlsScript.gravity = 0f;
-            Vector3 direcao = (groundSpot.position - Player.position).normalized;
-            Player.transform.position += direcao * velocidadeQueda * Time.fixedDeltaTime;
-            Quaternion olharPara = Quaternion.LookRotation(direcao);
-            Player.transform.rotation = olharPara;
-        }
-        else
-        {
-            VikingControlsScript.gravity = VikingControlsScript.Lastgravity;
-            return;
-        }
-    }
-
-    void controleDaDistancia()
-    {
-        if (goToShip == true)
-        {
-            GoToShip(true);
-        } 
-
-        if (goToGround == true)
-        {
-            goToShip = false;
-            GoToShip(false);
-            GoToGround(true);
-        }
-    }
-
-    void OnShip()
-    {
-        if (ShipInsideColliderScript.playerIsInsideShip == true)
-        {
-            velocidade = 0f;
-            goToShip = false;
-        } 
-    }
-
-    void OutaShip()
-    {
-        if (Viking_animScript.shipOut == true)
-        {
-            goToGround = true;
-        }
-    }
-
-    void VickLand()
-    {
-        if (ShipOutLandScript.vLand == true)
-        {
-            Transform Ship = GameObject.Find("Ship_Prototype").transform;
-            shipYRot = Ship.transform.localEulerAngles.y;
-            goToGround = false;
-            VikingControlsScript.gravity = VikingControlsScript.Lastgravity;
-
-            if (runOnce)
-            {
-                Player.transform.localEulerAngles = new Vector3(0, shipYRot, 0);
-                runOnce = false;
+                Player.transform.localEulerAngles = new Vector3(0, vikingShipOrientation, 0);
+                applyRotationOnce = false;
             }
 
+        }
+    }
+
+    void TurnOnGravity()
+    {
+        VikingControlsScript.gravity = VikingControlsScript.Lastgravity;
+    }
+
+    public bool isCarryingPlayerToShip
+    {
+        get
+        {
+            return carryPlayerToShip;
         }
     }
 }
