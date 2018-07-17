@@ -1,41 +1,67 @@
 ﻿using UnityEngine;
 using System.Collections;
+using UnityEngine.Assertions;
 
 public class ShipBehaviour : MonoBehaviour
 {
     [HideInInspector]
-    public bool onShipEntrance;
-    [HideInInspector]
     public bool applyRotationOnce;
 
+    private bool playerIsOnShipEntrance;
     private bool carryPlayerToShip;
 
-    public Transform Player;
-    public Transform VikingShip;
-    public Transform groundSpot;
+    private Transform Player;
+    private Transform VikingShip;
+    private Transform landingSpot;
 
-    public VikingControls VikingControlsScript;
-    public ShipInsideCollider ShipInsideColliderScript;
-    public ShipLandingCollider ShipLandingColliderScript;
-    public Viking_anim Viking_animScript;
+    private VikingControls VikingControlsScript;
+    private ShipInsideCollider ShipInsideColliderScript;
+    private ShipLandingCollider ShipLandingColliderScript;
+    private Viking_anim Viking_animScript;
 
     public float risingSpeed = 2;
     public float fallingSpeed = 10;
 
     private float vikingShipOrientation;
 
+    private GameObject playerGameObject;
+    private GameObject vikingShipObject;
+
+    void Awake()
+    {
+        playerGameObject = GameObject.FindWithTag("Player");
+        Player = playerGameObject.GetComponent<Transform>();
+        VikingControlsScript = playerGameObject.GetComponent<VikingControls>();
+        Viking_animScript = playerGameObject.GetComponent<Viking_anim>();
+
+        vikingShipObject = GameObject.FindWithTag("Viking_Ship");
+        ShipInsideColliderScript = vikingShipObject.GetComponentInChildren<ShipInsideCollider>();
+        ShipLandingColliderScript = vikingShipObject.GetComponentInChildren<ShipLandingCollider>();
+        VikingShip = vikingShipObject.GetComponent<Transform>();
+
+        landingSpot = vikingShipObject.GetComponentInChildren<Transform>().GetChild(1).GetChild(2);
+    }
+
     void FixedUpdate()
     {
         CarryPlayerToShip(carryPlayerToShip);
-        LaunchPlayerToGroundSpot(Viking_animScript.launchPlayerFromShip);
+        LaunchPlayerToLandingSpot(Viking_animScript.launchPlayerFromShip);
         LandingPlayer();
+    }
+
+    void Update()
+    {
+        Assert.IsNotNull(VikingControlsScript);
+        Assert.IsNotNull(ShipInsideColliderScript);
+        Assert.IsNotNull(ShipLandingColliderScript);
+        Assert.IsNotNull(Viking_animScript);
     }
 
     void OnTriggerEnter(Collider other)
     {
         if (other.gameObject.tag == "Player")
         {
-            onShipEntrance = true;
+            playerIsOnShipEntrance = true;
             carryPlayerToShip = true;
         } 
     }
@@ -70,11 +96,11 @@ public class ShipBehaviour : MonoBehaviour
 
     }
 
-    void LaunchPlayerToGroundSpot(bool launch)
+    void LaunchPlayerToLandingSpot(bool launch)
     {
         if (launch)
         {
-            Vector3 directionToGround = (groundSpot.position - Player.position).normalized;
+            Vector3 directionToGround = (landingSpot.position - Player.position).normalized;
             Player.transform.position += directionToGround * fallingSpeed * Time.fixedDeltaTime;
             Quaternion inclineHeadForward = Quaternion.LookRotation(directionToGround);
             Player.transform.rotation = inclineHeadForward;
@@ -85,15 +111,8 @@ public class ShipBehaviour : MonoBehaviour
     {
         if (ShipLandingColliderScript.PlayerHitExitCollider)
         {
-            vikingShipOrientation = VikingShip.transform.localEulerAngles.y;
             TurnOnGravity();
-
-            if (applyRotationOnce)
-            {
-                Player.transform.localEulerAngles = new Vector3(0, vikingShipOrientation, 0);
-                applyRotationOnce = false;
-            }
-
+            MakePlayerParallelToShip(applyRotationOnce);
         }
     }
 
@@ -102,11 +121,33 @@ public class ShipBehaviour : MonoBehaviour
         VikingControlsScript.gravity = VikingControlsScript.Lastgravity;
     }
 
+    void MakePlayerParallelToShip(bool rotatePlayer)
+    {
+        if (rotatePlayer)
+        {
+            vikingShipOrientation = VikingShip.transform.localEulerAngles.y;
+            Player.transform.localEulerAngles = new Vector3(0, vikingShipOrientation, 0);
+            applyRotationOnce = false;
+        }
+    }
+
     public bool isCarryingPlayerToShip
     {
         get
         {
             return carryPlayerToShip;
+        }
+    }
+
+    public bool isPlayerOnShipEntrance
+    {
+        get
+        {
+            return playerIsOnShipEntrance;
+        }
+        set
+        {
+            playerIsOnShipEntrance = value;
         }
     }
 }
