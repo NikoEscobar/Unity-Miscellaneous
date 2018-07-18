@@ -74,7 +74,7 @@ public class CameraPlacementSwapper : MonoBehaviour
     private bool IsPlayerInsideShip()
     {
         bool playerOnShip;
-        if (ShipInsideColliderScript.playerIsInsideShip == true || ShipCameraColliderScript.CameraIsInsideShip == true)
+        if (ShipInsideColliderScript.isPlayerInsideShip || ShipCameraColliderScript.isCameraInsideShip)
         {
             playerOnShip = true;
         }

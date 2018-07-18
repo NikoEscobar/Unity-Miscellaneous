@@ -10,8 +10,8 @@ public class ShipBehaviour : MonoBehaviour
     private bool playerIsOnShipEntrance;
     private bool carryPlayerToShip;
 
-    private Transform Player;
-    private Transform VikingShip;
+    private Transform player;
+    private Transform vikingShip;
     private Transform landingSpot;
 
     private VikingControls VikingControlsScript;
@@ -30,14 +30,14 @@ public class ShipBehaviour : MonoBehaviour
     void Awake()
     {
         playerGameObject = GameObject.FindWithTag("Player");
-        Player = playerGameObject.GetComponent<Transform>();
+        player = playerGameObject.GetComponent<Transform>();
         VikingControlsScript = playerGameObject.GetComponent<VikingControls>();
         Viking_animScript = playerGameObject.GetComponent<Viking_anim>();
 
         vikingShipObject = GameObject.FindWithTag("Viking_Ship");
         ShipInsideColliderScript = vikingShipObject.GetComponentInChildren<ShipInsideCollider>();
         ShipLandingColliderScript = vikingShipObject.GetComponentInChildren<ShipLandingCollider>();
-        VikingShip = vikingShipObject.GetComponent<Transform>();
+        vikingShip = vikingShipObject.GetComponent<Transform>();
 
         landingSpot = vikingShipObject.GetComponentInChildren<Transform>().GetChild(1).GetChild(2);
     }
@@ -49,6 +49,7 @@ public class ShipBehaviour : MonoBehaviour
         LandingPlayer();
     }
 
+    #if UNITY_EDITOR
     void Update()
     {
         Assert.IsNotNull(VikingControlsScript);
@@ -56,6 +57,7 @@ public class ShipBehaviour : MonoBehaviour
         Assert.IsNotNull(ShipLandingColliderScript);
         Assert.IsNotNull(Viking_animScript);
     }
+    #endif
 
     void OnTriggerEnter(Collider other)
     {
@@ -86,10 +88,10 @@ public class ShipBehaviour : MonoBehaviour
         {
             VikingControlsScript.FreezePlayerMovement(true);
             ApplyInertiaToPlayer();
-            Vector3 directionToShip = (VikingShip.position - Player.position).normalized;
-            Player.transform.position += directionToShip * risingSpeed * Time.fixedDeltaTime;
+            Vector3 directionToShip = (vikingShip.position - player.position).normalized;
+            player.transform.position += directionToShip * risingSpeed * Time.fixedDeltaTime;
         }
-        if (ShipInsideColliderScript.PlayerIsInsideShip)
+        if (ShipInsideColliderScript.isPlayerInsideShip)
         {
             carryPlayerToShip = false;
         }
@@ -100,16 +102,16 @@ public class ShipBehaviour : MonoBehaviour
     {
         if (launch)
         {
-            Vector3 directionToGround = (landingSpot.position - Player.position).normalized;
-            Player.transform.position += directionToGround * fallingSpeed * Time.fixedDeltaTime;
+            Vector3 directionToGround = (landingSpot.position - player.position).normalized;
+            player.transform.position += directionToGround * fallingSpeed * Time.fixedDeltaTime;
             Quaternion inclineHeadForward = Quaternion.LookRotation(directionToGround);
-            Player.transform.rotation = inclineHeadForward;
+            player.transform.rotation = inclineHeadForward;
         }
     }
 
     void LandingPlayer()
     {
-        if (ShipLandingColliderScript.PlayerHitExitCollider)
+        if (ShipLandingColliderScript.isPlayerInsideLandingCollider)
         {
             TurnOnGravity();
             MakePlayerParallelToShip(applyRotationOnce);
@@ -125,8 +127,8 @@ public class ShipBehaviour : MonoBehaviour
     {
         if (rotatePlayer)
         {
-            vikingShipOrientation = VikingShip.transform.localEulerAngles.y;
-            Player.transform.localEulerAngles = new Vector3(0, vikingShipOrientation, 0);
+            vikingShipOrientation = vikingShip.transform.localEulerAngles.y;
+            player.transform.localEulerAngles = new Vector3(0, vikingShipOrientation, 0);
             applyRotationOnce = false;
         }
     }
@@ -148,6 +150,14 @@ public class ShipBehaviour : MonoBehaviour
         set
         {
             playerIsOnShipEntrance = value;
+        }
+    }
+
+    public GameObject GetPlayer
+    {
+        get
+        {
+            return playerGameObject;
         }
     }
 }
