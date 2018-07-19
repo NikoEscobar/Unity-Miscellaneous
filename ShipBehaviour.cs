@@ -76,18 +76,12 @@ public class ShipBehaviour : MonoBehaviour
         }
     }
 
-    void ApplyInertiaToPlayer()
-    {
-        VikingControlsScript.speed = 0f;
-        VikingControlsScript.gravity = 0f;
-    }
-
     void CarryPlayerToShip(bool isCarrying)
     {
         if (isCarrying)
         {
             VikingControlsScript.FreezePlayerMovement(true);
-            ApplyInertiaToPlayer();
+            VikingControlsScript.ApplyInertiaToPlayer();
             Vector3 directionToShip = (vikingShip.position - player.position).normalized;
             player.transform.position += directionToShip * risingSpeed * Time.fixedDeltaTime;
         }
@@ -113,14 +107,9 @@ public class ShipBehaviour : MonoBehaviour
     {
         if (ShipLandingColliderScript.isPlayerInsideLandingCollider)
         {
-            TurnOnGravity();
+            VikingControlsScript.RestoreGravity();
             MakePlayerParallelToShip(applyRotationOnce);
         }
-    }
-
-    void TurnOnGravity()
-    {
-        VikingControlsScript.gravity = VikingControlsScript.Lastgravity;
     }
 
     void MakePlayerParallelToShip(bool rotatePlayer)
