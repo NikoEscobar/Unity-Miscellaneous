@@ -17,7 +17,7 @@ public class ShipBehaviour : MonoBehaviour
     private VikingControls VikingControlsScript;
     private ShipInsideCollider ShipInsideColliderScript;
     private ShipLandingCollider ShipLandingColliderScript;
-    private Viking_anim Viking_animScript;
+    private VikingAnimator Viking_animScript;
 
     public float risingSpeed = 2;
     public float fallingSpeed = 10;
@@ -32,7 +32,7 @@ public class ShipBehaviour : MonoBehaviour
         playerGameObject = GameObject.FindWithTag("Player");
         player = playerGameObject.GetComponent<Transform>();
         VikingControlsScript = playerGameObject.GetComponent<VikingControls>();
-        Viking_animScript = playerGameObject.GetComponent<Viking_anim>();
+        Viking_animScript = playerGameObject.GetComponent<VikingAnimator>();
 
         vikingShipObject = GameObject.FindWithTag("Viking_Ship");
         ShipInsideColliderScript = vikingShipObject.GetComponentInChildren<ShipInsideCollider>();
