@@ -1,118 +1,148 @@
 ﻿using UnityEngine;
 using System.Collections;
 using UnityStandardAssets.CrossPlatformInput;
+using UnityEngine.Assertions;
 
 public class VikingControls : MonoBehaviour
 {
     public float speed = 6.0f;
-    public float jumpSpeed = 8.0f;
+    public float jumpForce = 8.0f;
     public float gravity = 20.0f;
     public float turnSpeed = 200.0f;
 
-    public bool TryingToMove;
+    private float turn;
+    private float walk;
 
-    public Viking_anim Viking_animScript;
+    private float defaultSpeed;
+    private float defaultJumpForce;
+    private float defaultTurnSpeed;
+    private float defaultGravity;
 
-    public ShipBehaviour ShipAnimScript;
+    private bool tryingToMove;
 
-    private Vector3 moveDirection = Vector3.zero;
+    private VikingAnimator VikingAnimatorScript;
 
-    float LastSpeed;
-    float LastJumpSpeed;
-    float LastturnSpeed;
-    public float Lastgravity;
+    private Vector3 movement = Vector3.zero;
+
+    private CharacterController controller;
+
+    void Awake()
+    {
+        controller = GetComponent<CharacterController>();
+        VikingAnimatorScript = GetComponent<VikingAnimator>();
+    }
 
     void Start()
     {	
-        LastSpeed = speed;
-        LastJumpSpeed = jumpSpeed;
-        LastturnSpeed = turnSpeed;
-        Lastgravity = gravity;
+        defaultSpeed = speed;
+        defaultJumpForce = jumpForce;
+        defaultTurnSpeed = turnSpeed;
+        defaultGravity = gravity;
 
         FreezePlayerMovement(false);
     }
 
     void FixedUpdate()
     {   
+        SetInputsByPlataform();
+        WalkingControls(turn, walk);
+    }
+
+    #if UNITY_EDITOR
+    void Update()
+    {
+        Assert.IsNotNull(VikingAnimatorScript);
+    }
+    #endif
+
+    void SetInputsByPlataform()
+    {
         #if MOBILE_INPUT
-		VickCommand_Touch ();
+        turn = CrossPlatformInputManager.GetAxis("Horizontal_ThirdPerson");
+        walk = CrossPlatformInputManager.GetAxis("Vertical_ThirdPerson");
+
         #else
-        VickCommand();
+        turn = Input.GetAxis("Horizontal");
+        walk = Input.GetAxis("Vertical");
+
         #endif
     }
 
-    void VickCommand()
-    {
-        CharacterController controller = GetComponent<CharacterController>();
-        float turn = Input.GetAxis("Horizontal");
-
+    void WalkingControls(float turnCharacterInput, float moveCharacterInput)
+    {        
         if (controller.isGrounded)
-        {	
-            moveDirection = new Vector3(0, -1f, Input.GetAxis("Vertical"));
-            moveDirection = transform.TransformDirection(moveDirection);
-            moveDirection *= speed;
-            this.transform.Rotate(0, turn * turnSpeed * Time.fixedDeltaTime, 0);
-
-            if (Viking_animScript.jumpBoost == true)
-                moveDirection.y = jumpSpeed;
+        {	                                        
+            ApplyCharacterMovement(turnCharacterInput, moveCharacterInput);
+            JumpControl();
         }
-        moveDirection.y -= gravity * Time.fixedDeltaTime;
-        controller.Move(moveDirection * Time.fixedDeltaTime);
+        ApplyGravity();
+        controller.Move(movement * Time.fixedDeltaTime);
 
-        if (Input.GetAxis("Horizontal") == 0 && Input.GetAxis("Vertical") == 0)
-        {
-            TryingToMove = false;
-        }
-        else
-            TryingToMove = true;
-
+        tryingToMove = IsMovementInputsHeldDown(turnCharacterInput, moveCharacterInput);
     }
-
-    void VickCommand_Touch()
-    {
-        CharacterController controller = GetComponent<CharacterController>();
-        float turn = CrossPlatformInputManager.GetAxis("Horizontal_ThirdPerson");
-
-
-        if (controller.isGrounded)
-        {	
-            moveDirection = new Vector3(0, -1f, CrossPlatformInputManager.GetAxis("Vertical_ThirdPerson"));
-            moveDirection = transform.TransformDirection(moveDirection);
-            moveDirection *= speed;
-
-            this.transform.Rotate(0, turn * turnSpeed * Time.fixedDeltaTime, 0);
-
-            if (Viking_animScript.jumpBoost == true)
-                moveDirection.y = jumpSpeed;
-        }	
-        moveDirection.y -= gravity * Time.fixedDeltaTime;
-        controller.Move(moveDirection * Time.fixedDeltaTime);
-
-        if (CrossPlatformInputManager.GetAxis("Horizontal_ThirdPerson") == 0 && CrossPlatformInputManager.GetAxis("Vertical_ThirdPerson") == 0)
-        {
-            TryingToMove = false;
-        }
-        else
-            TryingToMove = true;
-    }
-
 
     public void FreezePlayerMovement(bool frozen)
     {
         if (frozen)
         {
-           
             speed = 0f;
-            jumpSpeed = 0f;
+            jumpForce = 0f;
             turnSpeed = 0f;
         }
 
         if (!frozen)
         {
-           
-            speed = LastSpeed;
-            jumpSpeed = LastJumpSpeed;
-            turnSpeed = LastturnSpeed;
+            speed = defaultSpeed;
+            jumpForce = defaultJumpForce;
+            turnSpeed = defaultTurnSpeed;
+        }
+    }
+
+    bool IsMovementInputsHeldDown(float horizontalControllerInput, float verticalControllerInput)
+    {
+        if (horizontalControllerInput != 0 || verticalControllerInput != 0)
+            return true;
+        else
+            return false;
+    }
+
+    void ApplyCharacterMovement(float turnInput, float moveInput)
+    {
+        movement = new Vector3(0, -1f, moveInput);
+        movement = transform.TransformDirection(movement);
+        movement *= speed;
+        this.transform.Rotate(0, turnInput * turnSpeed * Time.fixedDeltaTime, 0);
+    }
+
+    void JumpControl()
+    {
+        if (VikingAnimatorScript.jumpBoost == true)
+        {
+            movement.y = jumpForce;
+        }
+    }
+
+    void ApplyGravity()
+    {
+        movement.y -= gravity * Time.fixedDeltaTime;
+    }
+
+    public void RestoreGravity()
+    {
+        gravity = defaultGravity;
+    }
+
+    public void ApplyInertiaToPlayer()
+    {
+        speed = 0f;
+        gravity = 0f;
+    }
+
+    public bool IsTryingToMove
+    {
+        get
+        {
+            return tryingToMove;
         }
     }
 }
