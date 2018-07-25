@@ -1,50 +1,51 @@
 ﻿using UnityEngine;
 using System.Collections;
 using UnityStandardAssets.CrossPlatformInput;
+using UnityEngine.Assertions;
 
 public class VikingAnimator : MonoBehaviour
 {
+    private GameObject vikingShipObject;
 
-    private Animator anim;
-    public VikingControls VikingControlsScript;
-    public ShipBehaviour ShipBehaviourScript;
-    public ShipInsideCollider ShipInsideColliderScript;
-    public ShipLandingCollider ShipOutLandScript;
+    private Animator animator;
+
+    private CharacterController controller;
+    private AnimatorStateInfo stateInfo;
+
+    private VikingControls VikingControlsScript;
+    private ShipBehaviour ShipBehaviourScript;
+    private ShipInsideCollider ShipInsideColliderScript;
+    private ShipLandingCollider ShipLandingColliderScript;
 
     public AnyDamage AnyDamageScript;
 
-    int jumpHash = Animator.StringToHash("Base Layer.Jump");
-
-    public float animSpeed = 1f;
-    public float speed;
-    public bool jumpBoost = false;
-    public bool jumping = false;
-
+    private int jumpHash = Animator.StringToHash("Base Layer.Jump");
+    [SerializeField]
+    private int eventsInARow = 0;
+    [SerializeField]
+    private float secondsPastWhileSleeping;
+    [HideInInspector]
     public bool launchPlayerFromShip;
-    public bool onAnim;
 
-    bool animPlayOnce = true;
-    bool animPlayOnce2 = false;
+    private bool animPlayOnce = true;
+    private bool animPlayOnce2 = false;
+    private bool isAttacking = false;
+    private bool runAnimationOnce = true;
 
     private AnimatorStateInfo currentBaseState;
     private AnimatorStateInfo layer2CurrentState;
 	
-    static int Idle_SState = Animator.StringToHash("Base Layer.Idle_Start");
-    static int Idle_LState = Animator.StringToHash("Base Layer.Idle_Loop");
-    static int Idle_OState = Animator.StringToHash("Base Layer.Idle_Out");
-    //----------------------------------------------------------------------
-    static int jump_State = Animator.StringToHash("Jump");
+    //[New animations viking1.1]--------------------------------------------
     static int jump_Start = Animator.StringToHash("Base Layer.Jump_Start");
-    static int jump_End = Animator.StringToHash("Base Layer.Jump_End");
     static int jump_Boost = Animator.StringToHash("Base Layer.Jump_Boost");
     static int jump_Falling = Animator.StringToHash("Base Layer.Jump_Falling");
     static int jump_Fall = Animator.StringToHash("Base Layer.Jump_Fall");
-    //----------------------------------------------------------------------
+    //[New animations viking1.2]--------------------------------------------
     static int shipInState = Animator.StringToHash("Base Layer.Ship_In");
     static int shipOutStartState = Animator.StringToHash("Base Layer.Ship_Out_Start");
     static int shipFallLoopState = Animator.StringToHash("Base Layer.Ship_Fall_Loop");
     static int shipFallEndState = Animator.StringToHash("Base Layer.Ship_Fall_End");
-    //----------------------------------------------------------------------
+    //[New animations viking1.3]--------------------------------------------
     static int Run_Start_State = Animator.StringToHash("Base Layer.Run_Start");
     static int Run_Loop_State = Animator.StringToHash("Base Layer.Run_Loop");
     static int NeoIdle_State = Animator.StringToHash("Base Layer.Idle_States.Idle_Loop");
@@ -58,296 +59,115 @@ public class VikingAnimator : MonoBehaviour
     static int Damage_Front_State = Animator.StringToHash("Base Layer.Damage_Front");
     static int Damage_Back_State = Animator.StringToHash("Base Layer.Damage_Back");
 
-    public bool OnAtk = false;
-	
-    public bool runconce = true;
-    public bool dontmove;
-    public int idleStateCounter = 0;
-    public float time;
+    void Awake()
+    {
+        controller = GetComponent<CharacterController>();
+        VikingControlsScript = GetComponent<VikingControls>();
+
+        vikingShipObject = GameObject.FindWithTag("Viking_Ship");
+        ShipBehaviourScript = vikingShipObject.GetComponentInChildren<ShipBehaviour>();
+        ShipInsideColliderScript = vikingShipObject.GetComponentInChildren<ShipInsideCollider>();
+        ShipLandingColliderScript = vikingShipObject.GetComponentInChildren<ShipLandingCollider>();
+
+    }
 
     void Start()
-    {
-        anim = GetComponent<Animator>();
-        if (anim.layerCount == 2)
-            anim.SetLayerWeight(1, 1);
+    {   
+        animator = GetComponent<Animator>();
+        if (animator.layerCount == 2)
+            animator.SetLayerWeight(1, 1);
     }
+
+    #if UNITY_EDITOR
+    void Update()
+    {
+        Assert.IsNotNull(VikingControlsScript);
+        Assert.IsNotNull(ShipBehaviourScript);
+        Assert.IsNotNull(ShipInsideColliderScript);
+        Assert.IsNotNull(ShipLandingColliderScript);
+    }
+    #endif
 
     void FixedUpdate()
     {	
-        ShipInteractions();
+        stateInfo = animator.GetCurrentAnimatorStateInfo(0);
 
-        CharacterController controller = GetComponent<CharacterController>();
-
-        AnimatorStateInfo stateInfo = anim.GetCurrentAnimatorStateInfo(0);
-
-        #if MOBILE_INPUT
-        if ((CrossPlatformInputManager.GetAxis("Horizontal_ThirdPerson") != 0 || CrossPlatformInputManager.GetAxis("Vertical_ThirdPerson") != 0) && dontmove == true)
-        {
-            VikingControlsScript.FreezePlayerMovement(true);
-        }
-        else if (!ShipBehaviourScript.isCarryingPlayerToShip)
-        {
-            VikingControlsScript.FreezePlayerMovement(false);
-        }
-        #else
-        if ((Input.GetAxis("Horizontal") != 0 || Input.GetAxis("Vertical") != 0) && dontmove == true)
-        {       //[New animations viking1.3]
-            VikingControlsScript.FreezePlayerMovement(true);
-        }
-        else if (!ShipBehaviourScript.isCarryingPlayerToShip)
-        {
-            VikingControlsScript.FreezePlayerMovement(false);
-        }
-        #endif
-
-        if (!VikingControlsScript.IsTryingToMove)
-        {
-            anim.SetBool("TryingToMoving", false);
-        }
-        else
-            anim.SetBool("TryingToMoving", true);
-
-        #if MOBILE_INPUT
-
-        if (controller.isGrounded && !ShipBehaviourScript.isCarryingPlayerToShip)
-        {
-            if (CrossPlatformInputManager.GetButton("Jump") && dontmove == false && stateInfo.fullPathHash != jump_Start && stateInfo.fullPathHash != jump_End && stateInfo.fullPathHash != jump_Boost
-                && stateInfo.fullPathHash != jump_Fall && stateInfo.fullPathHash != jump_Falling)
-            {
-                anim.SetTrigger("Jump");
-
-            }
-            //[New animations viking1.4]
-            if (CrossPlatformInputManager.GetButton("Fire1") && dontmove == false && stateInfo.fullPathHash != Atk1_State && stateInfo.fullPathHash != jump_Start && stateInfo.fullPathHash != jump_Boost)
-            {
-                anim.SetTrigger("Atk1");
-                OnAtk = true;
-            }
-            else if (stateInfo.fullPathHash != Atk1_State)
-            {
-                OnAtk = false;
-            }
-            
-            if (CrossPlatformInputManager.GetButton("Fire2") && dontmove == false && stateInfo.fullPathHash != Def1_State && stateInfo.fullPathHash != jump_Start && stateInfo.fullPathHash != jump_Boost)
-            {
-                anim.SetTrigger("Def1");
-            }
-
-        }
-
-        #else
-        if (controller.isGrounded && !ShipBehaviourScript.isCarryingPlayerToShip)
-        {
-            if (Input.GetButton("Jump") && dontmove == false && stateInfo.fullPathHash != jump_Start && stateInfo.fullPathHash != jump_End && stateInfo.fullPathHash != jump_Boost
-                && stateInfo.fullPathHash != jump_Fall && stateInfo.fullPathHash != jump_Falling)
-            {	
-                anim.SetTrigger("Jump");
-            }
-            //[New animations viking1.4]
-            if (Input.GetButton("Fire1") && dontmove == false && stateInfo.fullPathHash != Atk1_State && stateInfo.fullPathHash != jump_Start && stateInfo.fullPathHash != jump_Boost)
-            {
-                anim.SetTrigger("Atk1");
-                OnAtk = true;
-            }
-            else if (stateInfo.fullPathHash != Atk1_State)
-            {
-                OnAtk = false;
-            }
-			
-            if (Input.GetButton("Fire2") && dontmove == false && stateInfo.fullPathHash != Def1_State && stateInfo.fullPathHash != jump_Start && stateInfo.fullPathHash != jump_Boost)
-            {
-                anim.SetTrigger("Def1");
-            }
-        }
-        #endif
-        if (stateInfo.fullPathHash == jump_Boost)
-        {
-            jumpBoost = true;
-        }
-        else
-            jumpBoost = false;
-
-        if (stateInfo.fullPathHash == jump_Boost || stateInfo.fullPathHash == jump_Falling || stateInfo.fullPathHash == jump_Fall)
-        {
-            jumping = true;
-        }
-        else
-            jumping = false;
-
-        if (!controller.isGrounded && jumping == true)
-        {
-            anim.SetBool("Grounded", false);
-        }
-        else
-            anim.SetBool("Grounded", true);
-
-        #if MOBILE_INPUT
-
-        if (ShipInsideColliderScript.isPlayerInsideShip)
-        {
-            if (CrossPlatformInputManager.GetButton("Jump") && stateInfo.fullPathHash != shipOutStartState && stateInfo.fullPathHash != shipFallLoopState
-                && stateInfo.fullPathHash != shipFallEndState)
-            {
-                anim.SetTrigger("ShipOut");
-                launchPlayerFromShip = true;
-            }
-        }
-
-        if (CrossPlatformInputManager.GetButton("Fire1"))
-        {
-            anim.SetBool("AtkButtonDown", true);
-        }
-        else if (!CrossPlatformInputManager.GetButton("Fire1"))
-        {
-            anim.SetBool("AtkButtonDown", false);
-        }
-            
-        if (CrossPlatformInputManager.GetButton("Fire2"))
-        {
-            anim.SetBool("DefButtonDown", true);
-        }
-        else if (!CrossPlatformInputManager.GetButton("Fire2"))
-        {
-            anim.SetBool("DefButtonDown", false);
-        }
-
-        if (CrossPlatformInputManager.GetButton("E") && dontmove == false && stateInfo.fullPathHash != Skalagrim_throw_State && stateInfo.fullPathHash != jump_Start && stateInfo.fullPathHash != jump_Boost
-            && stateInfo.fullPathHash != jump_Fall && stateInfo.fullPathHash != jump_Falling)
-        {
-            anim.SetTrigger("Skalla_Special");
-        }
-
-        #else
-		
-        if (ShipInsideColliderScript.isPlayerInsideShip)
-        {
-            if (Input.GetButton("Jump") && stateInfo.fullPathHash != shipOutStartState && stateInfo.fullPathHash != shipFallLoopState
-                && stateInfo.fullPathHash != shipFallEndState)
-            {
-                anim.SetTrigger("ShipOut");
-                launchPlayerFromShip = true;
-            }
-        }
-
-        //[New animations viking1.4]
-        if (Input.GetButton("Fire1"))
-        {
-            anim.SetBool("AtkButtonDown", true);
-        }
-        else if (!Input.GetButton("Fire1"))
-        {
-            anim.SetBool("AtkButtonDown", false);
-        }
-            
-        if (Input.GetButton("Fire2"))
-        {
-            anim.SetBool("DefButtonDown", true);
-        }
-        else if (!Input.GetButton("Fire2"))
-        {
-            anim.SetBool("DefButtonDown", false);
-        }
-        //[New animations viking1.4] //precisa colocar os idles das respectivas defesas só assim vai fazer sentido os knockbacks
-        if (Input.GetButtonUp("Q") && stateInfo.fullPathHash != Def_axeShield_State && stateInfo.fullPathHash != Def_shieldStand_State)
-        {
-            anim.SetTrigger("Damage_F");
-        } 
-        
-        if (Input.GetButtonUp("Q") && (stateInfo.fullPathHash == Def_axeShield_State || stateInfo.fullPathHash == Def_shieldStand_State))
-        {
-            anim.SetTrigger("Damage_KB");
-        }
-        
-        if (Input.GetButtonUp("E") && dontmove == false && stateInfo.fullPathHash != Skalagrim_throw_State && stateInfo.fullPathHash != jump_Start && stateInfo.fullPathHash != jump_Boost
-            && stateInfo.fullPathHash != jump_Fall && stateInfo.fullPathHash != jump_Falling)
-        {
-            anim.SetTrigger("Skalla_Special");
-        }
-
-        #endif        		
-
-        DamageReceiver();		
-        IdleStatesController();
-        AnimationMotionCrontrol();
+        PreventMovementByAnimation();
+        SetWalkAnimatorBool();
+        SetFallingAnimatorBool();
+        GroundedOnlyAnimatorTriggers();
+        SetShipAnimatorTrigger();
+        SetAttackAnimatorBool();
+        SetDefenseAnimatorBool();
+        SetKnockbacksAnimatorTriggers();
+        SetDamageAnimatorTriggers();		
+        SetIdlesEventsAnimatorStates();
     }
 
-    void ShipInteractions()
-    {
-        if (ShipBehaviourScript.isCarryingPlayerToShip && animPlayOnce == true)
-        {
-            anim.SetTrigger("ShipIn");
-            animPlayOnce = false;
-            animPlayOnce2 = true;
-        }
-
-        if (ShipOutLandScript.isPlayerInsideLandingCollider && animPlayOnce2 == true)
-        {
-            anim.SetTrigger("GroundVLand");
-            animPlayOnce2 = false;
-            animPlayOnce = true;
-        }
-    }
-
-    IEnumerator IdleRandomStates()
+    IEnumerator SetRandomIdleEventTrigger()
     { 	
         yield return new WaitForSeconds(30f);
         while (!VikingControlsScript.IsTryingToMove)
         {
-            if (idleStateCounter <= 3)
+            if (eventsInARow <= 3)
             {
-                int randomStateValue = (Random.Range(0, 9));
-                idleStateCounter = idleStateCounter + 1;
-                switch (randomStateValue)
+                int randomState = (Random.Range(0, 9));
+                eventsInARow += 1;
+                switch (randomState)
                 {
                     case 0:
-                        anim.SetTrigger("Coff_State_Trigger");
+                        animator.SetTrigger("Coff_State_Trigger");
                         break;
                     case 1:
-                        anim.SetTrigger("Cold_State_Trigger");
+                        animator.SetTrigger("Cold_State_Trigger");
                         break;
                     case 2:
-                        anim.SetTrigger("Hot_State_Trigger");
+                        animator.SetTrigger("Hot_State_Trigger");
                         break;
                     case 3:
-                        anim.SetTrigger("Itchy_State_Trigger");
+                        animator.SetTrigger("Itchy_State_Trigger");
                         break;
                     case 4:
-                        anim.SetTrigger("Look_Around_Trigger");
+                        animator.SetTrigger("Look_Around_Trigger");
                         break;
                     case 5:
-                        anim.SetTrigger("Look_Hand_Sky_Trigger");
+                        animator.SetTrigger("Look_Hand_Sky_Trigger");
                         break;
                     case 6:
-                        anim.SetTrigger("Search_Floor_Trigger");
+                        animator.SetTrigger("Search_Floor_Trigger");
                         break;
                     case 7:
-                        anim.SetTrigger("Tired_State_Trigger");
+                        animator.SetTrigger("Tired_State_Trigger");
                         break;
                     case 8:
-                        anim.SetTrigger("Turn_Back_Complain_Trigger");
+                        animator.SetTrigger("Turn_Back_Complain_Trigger");
                         break;
                     default:
+                        #if UNITY_EDITOR
                         Debug.LogError("randomStateValue Variable Out of Range");
+                        #endif
                         break;
                 }
             }
-            else if (idleStateCounter > 3)
+            else if (eventsInARow > 3)
             {
-                int randomStateValueSecond = (Random.Range(0, 3));
-                idleStateCounter = 0;
-                switch (randomStateValueSecond)
+                int randomStateForEndlessIdles = (Random.Range(0, 3));
+                eventsInARow = 0;
+                switch (randomStateForEndlessIdles)
                 {
                     case 0:
-                        anim.SetTrigger("Sit_State_In_Trigger");
+                        animator.SetTrigger("Sit_State_In_Trigger");
                         break;
                     case 1:
-                        anim.SetTrigger("Hold_Arms_In_Trigger");
+                        animator.SetTrigger("Hold_Arms_In_Trigger");
                         break;
                     case 2:
-                        anim.SetTrigger("Sleep_In_Trigger");
+                        animator.SetTrigger("Sleep_In_Trigger");
                         break;
                     default:
+                        #if UNITY_EDITOR
                         Debug.LogError("randomStateValue[2] Variable Out of Range");
+                        #endif
                         break;
                 }
             }
@@ -356,61 +176,271 @@ public class VikingAnimator : MonoBehaviour
         yield return null;
     }
 
-    void IdleStatesController()
+    void GroundedOnlyAnimatorTriggers()
     {
-        AnimatorStateInfo stateInfo = anim.GetCurrentAnimatorStateInfo(0);
-
-        if (stateInfo.fullPathHash == NeoIdle_State && runconce == true)
-        {
-            StartCoroutine(IdleRandomStates());
-            runconce = false;
+        if (controller.isGrounded && IsInteractionInputsEnable() && IsAnimationInterruptible() && !IsJumpAnimationRunning())
+        {           
+            SetJumpAnimatorTrigger();
+            SetAttackAnimatorTrigger();
+            SetDefenseAnimatorTrigger();
+            SetSpecialAnimatorTrigger();
         }
-        else if (stateInfo.fullPathHash != NeoIdle_State)
-        {
-            runconce = true;
-        }
-		
-        if (stateInfo.fullPathHash == SleepLoop_State)
-        {
-            time = time + 1 * Time.deltaTime;
-            if (time > 30f)
-            {
-                anim.SetTrigger("Deep_Sleep_In_Trigger");
-                time = 0f;
-            }
-        }
-        else
-            time = 0f;
     }
 
-    void AnimationMotionCrontrol()
+    void PreventMovementByAnimation()
     {
-        AnimatorStateInfo stateInfo = anim.GetCurrentAnimatorStateInfo(0);
-		
-        if (stateInfo.fullPathHash == NeoIdle_State || stateInfo.fullPathHash == Run_Start_State || stateInfo.fullPathHash == Run_Loop_State ||
-            stateInfo.fullPathHash == jump_Fall || stateInfo.fullPathHash == jump_Falling || stateInfo.fullPathHash == jump_Boost ||
-            stateInfo.fullPathHash == jump_Start)
-        {
-            dontmove = false;
+        if (VikingControlsScript.IsTryingToMove && !IsAnimationInterruptible())
+        {    
+            VikingControlsScript.FreezePlayerMovement(true);
         }
-        else
-            dontmove = true; 
+        else if (IsInteractionInputsEnable())
+        {
+            VikingControlsScript.FreezePlayerMovement(false);
+        }
     }
 
-    void DamageReceiver()
+    void SetIdlesEventsAnimatorStates()
     {
-        AnimatorStateInfo stateInfo = anim.GetCurrentAnimatorStateInfo(0);
+        if (IsIdleAnimationRunning() && runAnimationOnce == true)
+        {
+            StartCoroutine(SetRandomIdleEventTrigger());
+            runAnimationOnce = false;
+        }
+        else if (!IsIdleAnimationRunning())
+        {
+            runAnimationOnce = true;
+        }
+		
+        SetDeepSleepAnimatorTrigger(30f);
+    }
 
+    void SetDamageAnimatorTriggers()
+    {
         if (AnyDamageScript.DamageEnter == true && stateInfo.fullPathHash != Damage_Front_State)
         {
-            anim.SetTrigger("Damage_F");
+            animator.SetTrigger("Damage_F");
             AnyDamageScript.DamageEnter = false;
         }
 
         if (AnyDamageScript.DamageExit == true && stateInfo.fullPathHash != Damage_Back_State)
         {
-            anim.SetTrigger("Damage_B");
+            animator.SetTrigger("Damage_B");
             AnyDamageScript.DamageExit = false;
+        }
+    }
+
+    bool IsJumpAnimationRunning()
+    {
+        if (stateInfo.fullPathHash == jump_Start || stateInfo.fullPathHash == jump_Boost
+            || stateInfo.fullPathHash == jump_Fall || stateInfo.fullPathHash == jump_Falling)
+            return true;
+        else
+            return false;
+    }
+
+    public bool IsJumpInBoostingAnimation()
+    {
+        if (stateInfo.fullPathHash == jump_Boost)
+            return true;
+        else
+            return false;
+    }
+
+    bool IsWalkingAnimationRunning()
+    {
+        if (stateInfo.fullPathHash == Run_Start_State || stateInfo.fullPathHash == Run_Loop_State)
+            return true;
+        else
+            return false;
+    }
+
+    bool IsShipAnimationRunning()
+    {
+        if (stateInfo.fullPathHash == shipInState && stateInfo.fullPathHash == shipOutStartState && stateInfo.fullPathHash == shipFallLoopState
+            && stateInfo.fullPathHash == shipFallEndState)
+            return true;
+        else
+            return false;
+    }
+
+    bool IsAnimationInterruptible()
+    {
+        if (IsIdleAnimationRunning() || IsWalkingAnimationRunning() || IsJumpAnimationRunning())
+            return true;
+        else
+            return false;
+    }
+
+    bool IsInteractionInputsEnable()
+    {
+        if (ShipBehaviourScript.isCarryingPlayerToShip)
+            return false;
+        else
+            return true;
+    }
+
+    bool IsIdleAnimationRunning()
+    {
+        if (stateInfo.fullPathHash == NeoIdle_State)
+            return true;
+        else
+            return false;
+    }
+
+    void SetWalkAnimatorBool()
+    {
+        if (VikingControlsScript.IsTryingToMove)
+            animator.SetBool("TryingToMove", true);
+        else
+            animator.SetBool("TryingToMove", false);
+    }
+
+    void SetShipAnimatorTrigger()
+    {
+        if (ShipInsideColliderScript.isPlayerInsideShip)
+        {
+            if (VikingControlsScript.JumpButton && !IsShipAnimationRunning())
+            {
+                animator.SetTrigger("ShipOut");
+                launchPlayerFromShip = true;
+            }
+        }
+
+        if (ShipBehaviourScript.isCarryingPlayerToShip && animPlayOnce == true)
+        {
+            animator.SetTrigger("ShipIn");
+            animPlayOnce = false;
+            animPlayOnce2 = true;
+        }
+
+        if (ShipLandingColliderScript.isPlayerInsideLandingCollider && animPlayOnce2 == true)
+        {
+            animator.SetTrigger("GroundVLand");
+            animPlayOnce2 = false;
+            animPlayOnce = true;
+        }
+    }
+
+    void SetAttackAnimatorBool()
+    {
+        if (VikingControlsScript.AttackButton)
+        {
+            animator.SetBool("AtkButtonDown", true);
+        }
+        else if (!VikingControlsScript.AttackButton)
+        {
+            animator.SetBool("AtkButtonDown", false);
+        }
+    }
+
+    void SetAttackAnimatorTrigger()
+    {
+        if (VikingControlsScript.AttackButton && stateInfo.fullPathHash != Atk1_State)
+        {
+            animator.SetTrigger("Atk1");
+            isAttacking = true;
+        }
+        else if (stateInfo.fullPathHash != Atk1_State)
+        {
+            isAttacking = false;
+        }
+    }
+
+    void SetDefenseAnimatorBool()
+    {
+        if (VikingControlsScript.DefenseButton)
+        {
+            animator.SetBool("DefButtonDown", true);
+        }
+        else if (!VikingControlsScript.DefenseButton)
+        {
+            animator.SetBool("DefButtonDown", false);
+        }
+    }
+
+    void SetJumpAnimatorTrigger()
+    {
+        if (VikingControlsScript.JumpButton)
+        {   
+            animator.SetTrigger("Jump");
+        }
+    }
+
+    void SetDefenseAnimatorTrigger()
+    {
+        if (VikingControlsScript.DefenseButton && stateInfo.fullPathHash != Def1_State)
+        {
+            animator.SetTrigger("Def1");
+        }
+    }
+
+    void SetKnockbacksAnimatorTriggers()
+    {
+        if (Input.GetButtonUp("Q") && !IsDefenseAnimationRunning())
+        {
+            animator.SetTrigger("Damage_F");
+        } 
+        
+        if (Input.GetButtonUp("Q") && IsDefenseAnimationRunning())
+        {
+            animator.SetTrigger("Damage_KB");
+        }
+    }
+
+    void SetSpecialAnimatorTrigger()
+    {
+        if (VikingControlsScript.SpecialAttackButton && stateInfo.fullPathHash != Skalagrim_throw_State)
+        {
+            animator.SetTrigger("Skalla_Special");
+        }
+    }
+
+    bool IsDefenseAnimationRunning()
+    {
+        if (stateInfo.fullPathHash == Def_axeShield_State || stateInfo.fullPathHash == Def_shieldStand_State)
+            return true;
+        else
+            return false;
+    }
+
+    void SetDeepSleepAnimatorTrigger(float secondsToEnterDeepSleeping)
+    {
+        if (stateInfo.fullPathHash == SleepLoop_State)
+        {
+            secondsPastWhileSleeping += 1 * Time.deltaTime;
+            if (secondsPastWhileSleeping > secondsToEnterDeepSleeping)
+            {
+                animator.SetTrigger("Deep_Sleep_In_Trigger");
+                secondsPastWhileSleeping = 0f;
+            }
+        }
+        else
+            secondsPastWhileSleeping = 0f;
+    }
+
+    void SetFallingAnimatorBool()
+    {
+        if (!controller.isGrounded && IsJumpAnimationRunning())
+        {
+            animator.SetBool("Grounded", false);
+        }
+        if (controller.isGrounded)
+        {
+            animator.SetBool("Grounded", true);
+        }
+        if (!controller.isGrounded && !IsJumpAnimationRunning())
+        {
+            animator.SetBool("Falling", true);
+        }
+        else
+            animator.SetBool("Falling", false);
+    }
+
+    public bool IsAttacking
+    {
+        get
+        {
+            return isAttacking;
         }
     }
 }
