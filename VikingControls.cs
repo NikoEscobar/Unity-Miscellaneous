@@ -19,6 +19,10 @@ public class VikingControls : MonoBehaviour
     private float defaultGravity;
 
     private bool tryingToMove;
+    private bool jump;
+    private bool attack;
+    private bool defense;
+    private bool specialAttack;
 
     private VikingAnimator VikingAnimatorScript;
 
@@ -60,10 +64,18 @@ public class VikingControls : MonoBehaviour
         #if MOBILE_INPUT
         turn = CrossPlatformInputManager.GetAxis("Horizontal_ThirdPerson");
         walk = CrossPlatformInputManager.GetAxis("Vertical_ThirdPerson");
+        jump = CrossPlatformInputManager.GetButton("Jump");
+        attack = CrossPlatformInputManager.GetButton("Fire1");
+        defense = CrossPlatformInputManager.GetButton("Fire2");
+        specialAttack = CrossPlatformInputManager.GetButton("E");
 
         #else
         turn = Input.GetAxis("Horizontal");
         walk = Input.GetAxis("Vertical");
+        jump = Input.GetButton("Jump");
+        attack = Input.GetButton("Fire1");
+        defense = Input.GetButton("Fire2");
+        specialAttack = Input.GetButton("E");
 
         #endif
     }
@@ -116,7 +128,7 @@ public class VikingControls : MonoBehaviour
 
     void JumpControl()
     {
-        if (VikingAnimatorScript.jumpBoost == true)
+        if (VikingAnimatorScript.IsJumpInBoostingAnimation())
         {
             movement.y = jumpForce;
         }
@@ -143,6 +155,38 @@ public class VikingControls : MonoBehaviour
         get
         {
             return tryingToMove;
+        }
+    }
+
+    public bool JumpButton
+    {
+        get
+        {
+            return jump;
+        }
+    }
+
+    public bool AttackButton
+    {
+        get
+        {
+            return attack;
+        }
+    }
+
+    public bool DefenseButton
+    {
+        get
+        {
+            return defense;
+        }
+    }
+
+    public bool SpecialAttackButton
+    {
+        get
+        {
+            return specialAttack;
         }
     }
 }
